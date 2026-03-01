@@ -1,0 +1,10 @@
+pymupdf
+opencv-python-headless
+pytesseract
+Pillow
+python-dotenv
+flask
+openpyxl
+gunicorn
+numpy
+pyzbar
