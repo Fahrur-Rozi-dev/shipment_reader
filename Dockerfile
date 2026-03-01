@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user (HF Spaces requirement)
+RUN useradd -m -u 1000 appuser
+
 WORKDIR /app
 
 # Copy requirements first (better Docker cache)
@@ -19,11 +22,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app code
 COPY . .
 
-# Create directories
-RUN mkdir -p uploads page_images
+# Create writable directories
+RUN mkdir -p uploads page_images && chown -R appuser:appuser /app
 
-# Expose port
-EXPOSE 5000
+USER appuser
 
-# Run with gunicorn (production server)
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "300", "app:app"]
+# HF Spaces uses port 7860
+EXPOSE 7860
+
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "2", "--threads", "4", "--timeout", "300", "app:app"]
