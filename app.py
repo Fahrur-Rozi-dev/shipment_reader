@@ -295,6 +295,8 @@ def get_result(job_id):
         "result": job["result"],
         "error": job["error"],
         "message": job["message"],
+        "progress": job.get("progress", 0),
+        "total": job.get("total", 0),
     })
 
 
