@@ -328,7 +328,8 @@ def download_result(job_id):
 
 
 # ── SKU Transform ──────────────────────────────────────────────────────────
-# DSM-8cm-100pcs → KD8100  (DSM → KD, 8 = cm size, 100 = pcs count)
+# DSM-8cm-100pcs  → KD8100   (DSM  → KD)
+# PNGST-8cm-100pcs → KP8100  (PNGST → KP)
 # Handles OCR misreads: L→1, O→0, I→1, S→5, Z→2
 
 # OCR letter→digit correction map
@@ -338,19 +339,27 @@ def _fix_ocr_digits(text: str) -> str:
     """Fix common OCR letter→digit misreads in numeric parts."""
     return text.translate(_OCR_DIGIT_MAP)
 
-_DSM_PATTERN = re.compile(
-    r"^DSM[- ]?(\d[A-Z0-9]*?)\s*c?e?m[- ]?([A-Z0-9]+)\s*(?:p[cesCES]{2,3}|pcs|PCS|pes|pce)",
+# Brand prefix → spreadsheet code mapping
+_SKU_PREFIX_MAP = {
+    "DSM": "KD",
+    "PNGST": "KP",
+}
+
+_SKU_PATTERN = re.compile(
+    r"^(DSM|PNGST)[- ]?(\d[A-Z0-9]*?)\s*c?e?m[- ]?([A-Z0-9]+)\s*(?:p[cesCES]{2,3}|pcs|PCS|pes|pce)",
     re.IGNORECASE
 )
 
 def transform_sku(raw_sku: str) -> str:
-    """Transform DSM-style SKU to KD format. Non-DSM SKUs pass through."""
+    """Transform DSM/PNGST-style SKU to KD/KP format. Others pass through."""
     cleaned = raw_sku.strip()
-    m = _DSM_PATTERN.match(cleaned)
+    m = _SKU_PATTERN.match(cleaned)
     if m:
-        cm_size = _fix_ocr_digits(m.group(1))
-        pcs_count = _fix_ocr_digits(m.group(2))
-        return f"KD{cm_size}{pcs_count}"
+        brand = m.group(1).upper()
+        code = _SKU_PREFIX_MAP.get(brand, brand)
+        cm_size = _fix_ocr_digits(m.group(2))
+        pcs_count = _fix_ocr_digits(m.group(3))
+        return f"{code}{cm_size}{pcs_count}"
     return raw_sku
 
 
