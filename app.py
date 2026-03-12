@@ -190,6 +190,20 @@ def process_pdf_job(job_id: str, pdf_path: str, courier: str = "jnt"):
             "job_id": job_id,
         }
 
+        # Normalize SKU display for UI (fix OCR artifacts)
+        for shipment in result["shipments"]:
+            for item in shipment.get("items", []):
+                if "variant" in item:
+                    item["variant"] = normalize_sku_display(item["variant"])
+                if "name" in item:
+                    item["name"] = normalize_sku_display(item["name"])
+        for pr in result["page_results"]:
+            for item in pr.get("items", []):
+                if "variant" in item:
+                    item["variant"] = normalize_sku_display(item["variant"])
+                if "name" in item:
+                    item["name"] = normalize_sku_display(item["name"])
+
         job["status"] = "completed"
         job["result"] = result
         job["message"] = "Extraction complete!"
@@ -360,6 +374,24 @@ def transform_sku(raw_sku: str) -> str:
         cm_size = _fix_ocr_digits(m.group(2))
         pcs_count = _fix_ocr_digits(m.group(3))
         return f"{code}{cm_size}{pcs_count}"
+    return raw_sku
+
+
+# ── SKU Display Normalization (for UI) ─────────────────────────────────────
+_DISPLAY_PATTERN = re.compile(
+    r"^(DSM|PNGST)[- ]?(\d[A-Z0-9]*?)\s*c?e?m[- ]?([A-Z0-9]+)\s*(p[a-zA-Z]{2,3})",
+    re.IGNORECASE
+)
+
+def normalize_sku_display(raw_sku: str) -> str:
+    """Clean OCR artifacts for UI display: DSM-8cm-LO0pes → DSM-8cm-100pcs"""
+    cleaned = raw_sku.strip()
+    m = _DISPLAY_PATTERN.match(cleaned)
+    if m:
+        brand = m.group(1).upper()
+        cm_size = _fix_ocr_digits(m.group(2))
+        pcs_count = _fix_ocr_digits(m.group(3))
+        return f"{brand}-{cm_size}cm-{pcs_count}pcs"
     return raw_sku
 
 

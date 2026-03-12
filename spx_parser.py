@@ -74,6 +74,12 @@ def _is_valid_sku(sku: str) -> bool:
     # Skip sorting codes like TRU-A-05, BY-65
     if re.match(r"^[A-Z]{2,4}-[A-Z]-\d{1,2}$", sku):
         return False
+    # Skip short sorting codes like b2-I7, A3-K9 (all segments ≤ 2 chars)
+    if all(len(p) <= 2 for p in parts):
+        return False
+    # Skip 2-part codes that look like sorting codes (e.g. B2-17, C1-A5)
+    if len(parts) == 2 and len(sku) <= 6:
+        return False
     # Skip SPX resi numbers
     if sku.upper().startswith("SPX"):
         return False

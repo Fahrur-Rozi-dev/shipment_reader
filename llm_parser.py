@@ -408,6 +408,12 @@ def _is_valid_sku(sku: str) -> bool:
     # Skip sorting codes like 550-NGA23A-89A
     if re.match(r"^\d{3}-[A-Z]{3}", sku):
         return False
+    # Skip short sorting codes like b2-I7, A3-K9 (all segments ≤ 2 chars)
+    if all(len(p) <= 2 for p in parts):
+        return False
+    # Skip 2-part codes that look like sorting codes (e.g. B2-17, C1-A5)
+    if len(parts) == 2 and len(sku) <= 6:
+        return False
     # Skip patterns that look like "word.digits" (e.g. pos.6815atas, post.17611)
     if re.match(r"^[a-zA-Z]{2,}\.[0-9]+[a-zA-Z]*$", sku):
         return False
