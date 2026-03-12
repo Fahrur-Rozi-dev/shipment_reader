@@ -401,14 +401,39 @@ def _is_valid_sku(sku: str) -> bool:
     # Skip address components (Rt.04, Rw.026, km.1, etc.)
     if ADDRESS_PREFIXES.match(sku):
         return False
-    # Check word blacklist
+    # Check word blacklist (check each part separated by -._)
     parts = re.split(r"[-_.]", sku.lower())
     if any(part in SKU_BLACKLIST for part in parts):
         return False
     # Skip sorting codes like 550-NGA23A-89A
     if re.match(r"^\d{3}-[A-Z]{3}", sku):
         return False
+    # Skip patterns that look like "word.digits" (e.g. pos.6815atas, post.17611)
+    if re.match(r"^[a-zA-Z]{2,}\.[0-9]+[a-zA-Z]*$", sku):
+        return False
+    # Skip NO/No/n0/N0 + digits (OCR of "No.16" etc, e.g. NO15C.c, n0.16)
+    if re.match(r"^[Nn][Oo0]\d", sku) or re.match(r"^[Nn][Oo0][._]", sku):
+        return False
+    # Skip codes with single-char dot segments (e.g. NO15C.c, ref.A)
+    if re.search(r"\.[a-zA-Z]$", sku) and len(sku.split(".")[-1]) <= 2:
+        return False
+    # Skip if first part is a common Indonesian word (not a brand code)
+    first_part = parts[0] if parts else ""
+    if len(first_part) >= 3 and first_part.isalpha() and first_part not in ("dsm", "kd"):
+        # Check if it looks like a regular word rather than a code
+        if not any(c.isdigit() for c in first_part) and first_part in _COMMON_WORDS:
+            return False
     return True
+
+# Common Indonesian words that OCR might combine with numbers
+_COMMON_WORDS = {
+    "pos", "pesanan", "pesan", "atas", "bawah", "dari", "untuk", "yang",
+    "kirim", "terima", "paket", "barang", "nomor", "alamat", "nama",
+    "berat", "batas", "tanggal", "estimasi", "pengiriman", "penerima",
+    "pengirim", "produk", "total", "harga", "biaya", "ongkir",
+    "cod", "home", "eco", "std", "reg", "yes", "oke",
+    "hub", "via", "ref", "info", "note", "add", "new",
+}
 
 # Variasi / Variant field 
 VARIASI_PATTERN = re.compile(
@@ -430,6 +455,11 @@ SKU_BLACKLIST = {
     # Address words
     "rt", "rw", "km", "jl", "gg", "ds", "kp", "no",
     "desa", "kota", "kec", "kab", "kel",
+    # Common false positives from OCR
+    "pos", "pesanan", "pesan", "atas", "bawah",
+    "kirim", "terima", "paket", "nomor", "alamat",
+    "berat", "batas", "estimasi", "pengiriman",
+    "produk", "harga", "biaya", "ongkir",
 }
 
 # Legacy patterns (generic labels)

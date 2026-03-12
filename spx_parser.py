@@ -51,6 +51,11 @@ SKU_BLACKLIST = {
     "desa", "kota", "kec", "kab", "kel",
     "home", "eco", "std", "cod",
     "tru", "tru-a", "by-65",  # SPX sorting codes
+    # Common false positives from OCR
+    "pos", "pesanan", "pesan", "atas", "bawah",
+    "kirim", "terima", "paket", "nomor", "alamat",
+    "berat", "batas", "estimasi", "pengiriman",
+    "produk", "harga", "biaya", "ongkir",
 }
 
 
@@ -71,6 +76,15 @@ def _is_valid_sku(sku: str) -> bool:
         return False
     # Skip SPX resi numbers
     if sku.upper().startswith("SPX"):
+        return False
+    # Skip patterns like "word.digits" (e.g. pos.6815atas, post.17611)
+    if re.match(r"^[a-zA-Z]{2,}\.[0-9]+[a-zA-Z]*$", sku):
+        return False
+    # Skip NO/No/n0/N0 + digits (OCR of "No.16" etc)
+    if re.match(r"^[Nn][Oo0]\d", sku) or re.match(r"^[Nn][Oo0][._]", sku):
+        return False
+    # Skip codes with single-char dot segments (e.g. NO15C.c)
+    if re.search(r"\.[a-zA-Z]$", sku) and len(sku.split(".")[-1]) <= 2:
         return False
     return True
 

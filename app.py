@@ -329,18 +329,27 @@ def download_result(job_id):
 
 # ── SKU Transform ──────────────────────────────────────────────────────────
 # DSM-8cm-100pcs → KD8100  (DSM → KD, 8 = cm size, 100 = pcs count)
-# Non-DSM SKUs remain unchanged
+# Handles OCR misreads: L→1, O→0, I→1, S→5, Z→2
+
+# OCR letter→digit correction map
+_OCR_DIGIT_MAP = str.maketrans("OoIlLSsZzBb", "00111552288")
+
+def _fix_ocr_digits(text: str) -> str:
+    """Fix common OCR letter→digit misreads in numeric parts."""
+    return text.translate(_OCR_DIGIT_MAP)
+
 _DSM_PATTERN = re.compile(
-    r"^DSM[- ](\d+)\s*c?e?m[- ](\d+)\s*(?:pcs|pes|pce|pss)",
+    r"^DSM[- ]?(\d[A-Z0-9]*?)\s*c?e?m[- ]?([A-Z0-9]+)\s*(?:p[cesCES]{2,3}|pcs|PCS|pes|pce)",
     re.IGNORECASE
 )
 
 def transform_sku(raw_sku: str) -> str:
     """Transform DSM-style SKU to KD format. Non-DSM SKUs pass through."""
-    m = _DSM_PATTERN.match(raw_sku.strip())
+    cleaned = raw_sku.strip()
+    m = _DSM_PATTERN.match(cleaned)
     if m:
-        cm_size = m.group(1)
-        pcs_count = m.group(2)
+        cm_size = _fix_ocr_digits(m.group(1))
+        pcs_count = _fix_ocr_digits(m.group(2))
         return f"KD{cm_size}{pcs_count}"
     return raw_sku
 
